@@ -1,64 +1,84 @@
-from components.lexica import MyLexer
-from components.memory import Memory
 from sly import Parser
+from components.lexica import MyLexer
+from components.ast import statement as ast_module
+
 
 class MyParser(Parser):
-    debugfile = 'parser.out'
-    start = 'statement'
-    # Get the token list from the lexer (required)
     tokens = MyLexer.tokens
+    # Precedence from lowest to highest
     precedence = (
-        ('left', "+", MINUS),
-        ('left', TIMES, DIVIDE),
-        ('right', UMINUS),
-        )
+        ('left', 'EQEQ', 'NOTEQ'),
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'TIMES', 'DIVIDE'),
+    )
 
-    def __init__(self):
-        self.memory:Memory = Memory()
+    # The start symbol
+    @_('statements')
+    def program(self, p):
+        return p.statements
 
-    @_('NAME ASSIGN expr')
-    def statement(self, p):
-        var_name = p.NAME
-        value = p.expr
-        self.memory.set(variable_name=var_name,value=value, data_type=type(value))
-        # Note that I did not return anything
+    @_('stmt')
+    def statements(self, p):
+        return [p.stmt]
 
-    @_('expr')
-    # S -> E
-    def statement(self, p) -> int:
-        return p.expr
+    @_('stmt statements')
+    def statements(self, p):
+        return [p.stmt] + p.statements
 
-    # The example with literals
-    @_('expr "+" expr')
-    # E -> E + E
+    # Statement rules
+    @_('NAME EQUAL expr')
+    def stmt(self, p):
+        return ast_module.StatementAssign(p.NAME, p.expr)
+
+    @_('IF expr THEN statements END')
+    def stmt(self, p):
+        return ast_module.StatementIf(p.expr, ast_module.StatementBlock(p.statements))
+
+    @_('IF expr THEN statements ELSE statements END')
+    def stmt(self, p):
+        return ast_module.StatementIf(p.expr, ast_module.StatementBlock(p.statements0),
+                                       ast_module.StatementBlock(p.statements1))
+
+    @_('WHILE expr DO statements END')
+    def stmt(self, p):
+        return ast_module.StatementWhile(p.expr, ast_module.StatementBlock(p.statements))
+
+    @_('DEF NAME LPAREN parameters RPAREN statements END')
+    def stmt(self, p):
+        return ast_module.StatementFunctionDef(p.NAME, p.parameters, ast_module.StatementBlock(p.statements))
+
+    @_('PRINT LPAREN expr RPAREN')
+    def stmt(self, p):
+        return ast_module.StatementPrint(p.expr)
+
+    @_('NAME LPAREN arguments RPAREN')
+    def stmt(self, p):
+        return ast_module.StatementFunctionCall(p.NAME, p.arguments)
+
+    # Expression rules
+    @_('expr EQEQ expr')
     def expr(self, p):
-        # You can refer to the token 2 ways
-        # Way1: using array
-        print(p[0], p[1], p[2])
-        # Way2: using symbol name. 
-        # Here, if you have more than one symbols with the same name
-        # You have to indiciate the number at the end.
-        return p.expr0 + p.expr1
+        return ast_module.ExpressionCompare('==', p.expr0, p.expr1)
 
-    # The example with normal token
+    @_('expr NOTEQ expr')
+    def expr(self, p):
+        return ast_module.ExpressionCompare('!=', p.expr0, p.expr1)
+
+    @_('expr PLUS expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.PLUS, p.expr0, p.expr1)
+
     @_('expr MINUS expr')
     def expr(self, p):
-        print(p[0], p[1], p[2])
-        return p.expr0 - p.expr1
+        return ast_module.ExpressionBinary(ast_module.Operations.MINUS, p.expr0, p.expr1)
 
     @_('expr TIMES expr')
     def expr(self, p):
-        return p.expr0 * p.expr1
+        return ast_module.ExpressionBinary(ast_module.Operations.TIMES, p.expr0, p.expr1)
 
     @_('expr DIVIDE expr')
     def expr(self, p):
-        return p.expr0 / p.expr1
-
-    # https://sly.readthedocs.io/en/latest/sly.html#dealing-with-ambiguous-grammars
-    # `%prec UMINUS` is the way to override the `precedence` of MINUS to UMINUS.
-    @_('MINUS expr %prec UMINUS')
-    def expr(self, p):
-        return -p.expr
+        return ast_module.ExpressionBinary(ast_module.Operations.DIVIDE, p.expr0, p.expr1)
 
     @_('LPAREN expr RPAREN')
     def expr(self, p):
@@ -66,54 +86,46 @@ class MyParser(Parser):
 
     @_('NUMBER')
     def expr(self, p):
-        return int(p.NUMBER)
+        return ast_module.ExpressionNumber(p.NUMBER)
 
+    @_('STRING')
+    def expr(self, p):
+        return ast_module.ExpressionString(p.STRING)
 
-from components.ast.statement import Expression, Expression_math, Expression_number, Operations
-class ASTParser(Parser):
-    debugfile = 'parser.out'
-    start = 'statement'
-    # Get the token list from the lexer (required)
-    tokens = MyLexer.tokens
-    precedence = (
-        ('left', "+", MINUS),
-        # ('left', TIMES, DIVIDE),
-        # ('right', UMINUS),
-        )
+    @_('TRUE')
+    def expr(self, p):
+        return ast_module.ExpressionBoolean(p.TRUE)
 
+    @_('FALSE')
+    def expr(self, p):
+        return ast_module.ExpressionBoolean(p.FALSE)
+
+    @_('NAME')
+    def expr(self, p):
+        return ast_module.ExpressionVariable(p.NAME)
+
+    # Parameter list (for function definitions)
+    @_('NAME')
+    def parameters(self, p):
+        return [p.NAME]
+
+    @_('NAME COMMA parameters')
+    def parameters(self, p):
+        return [p.NAME] + p.parameters
+
+    @_('')
+    def parameters(self, p):
+        return []
+
+    # Argument list (for function calls)
     @_('expr')
-    def statement(self, p) -> int:
-        p.expr.run()
-        return p.expr.value
+    def arguments(self, p):
+        return [p.expr]
 
-    @_('expr "+" expr')
-    def expr(self, p) -> Expression:
-        parameter1 = p.expr0
-        parameter2 = p.expr1
-        expr = Expression_math(operation=Operations.PLUS, parameter1=parameter1, parameter2=parameter2)
-        return expr
-    
-    @_('expr MINUS expr')
-    def expr(self, p) -> Expression:
-        parameter1 = p.expr0
-        parameter2 = p.expr1
-        expr = Expression_math(operation=Operations.MINUS, parameter1=parameter1, parameter2=parameter2)
-        return expr
+    @_('expr COMMA arguments')
+    def arguments(self, p):
+        return [p.expr] + p.arguments
 
-    @_('NUMBER')
-    def expr(self, p) -> Expression:
-        return Expression_number(number=p.NUMBER)
-        
-        
-
-        
-if __name__ == "__main__":
-    lexer = MyLexer()
-    # parser = MyParser()
-    text = "9 + 2 + 3"
-    memory = Memory()
-    parser = ASTParser()
-    # text = "1 + 2 + 3"
-    result = parser.parse(lexer.tokenize(text))
-    print(result)
-    # print(memory)
+    @_('')
+    def arguments(self, p):
+        return []

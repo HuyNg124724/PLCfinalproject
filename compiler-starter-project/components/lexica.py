@@ -1,67 +1,85 @@
 from sly import Lexer
-import sly
+
+class LexerError(Exception):
+    pass
 
 class MyLexer(Lexer):
-    """
-    MyLexer is a class that inherits from sly.Lexer
-    It is used to tokenize the input string.
-    ref: https://sly.readthedocs.io/en/latest/sly.html#sly-sly-lex-yacc
-    
+    tokens = {
+        NAME, NUMBER, STRING, IF, THEN, ELSE, END, WHILE, DO, DEF, PRINT, TRUE, FALSE,
+        PLUS, MINUS, TIMES, DIVIDE, EQUAL, EQEQ, NOTEQ, LPAREN, RPAREN, COMMA
+    }
 
-    Python regEX: https://www.w3schools.com/python/python_regex.asp
-    """
+    ignore = ' \t'   # ignore spaces and tabs
 
-    ### `tokens` ###
-    # set `tokens` so it can be used in the parser.
-    # This must be here and all Capitalized. 
-    # Please, ignore IDE warning.
-    tokens = { ASSIGN, NAME, NUMBER, MINUS, DIVIDE, TIMES, LPAREN, RPAREN}
-    
-    # https://sly.readthedocs.io/en/latest/sly.html#literal-characters
-    literals = { '+' }
-    
-    ### matching rule ###
-    # The matching work from top to bottom
-    # At least, all toekns must be defined here
-
-    # Ignore spaces and tabs 
-    ignore = ' \t'
-
-    ### EX1: simply define with regEX ###
-    NAME = r'[a-zA-Z_][a-zA-Z0-9_]*'
-    ### EX2: Define as a function ###
-    @_(r'\d+')
-    def NUMBER(self, token):
-        # Note that this function set parse token.value to integer
-        token.value = int(token.value)
-        # Extra print for debug
-        print(f"====This print from NUMBER function: {token.type=} {token.value=} {type(token.value)=}")
-        return token
-
-    # Try uncomment this and run to see the differences between `token` and `literal`
-    ASSIGN  = r'\='
-    # PLUS    = r'\+'
+    # Operators and punctuation
+    PLUS    = r'\+'
     MINUS   = r'-'
     TIMES   = r'\*'
     DIVIDE  = r'/'
+    EQEQ    = r'=='
+    NOTEQ   = r'!='
+    EQUAL   = r'='
     LPAREN  = r'\('
     RPAREN  = r'\)'
+    COMMA   = r','
 
-    # Extra action for newlines
+    # String literals (double quotes)
+    @_(r'\"[^\"]*\"')
+    def STRING(self, token):
+        token.value = token.value[1:-1]  # remove surrounding quotes
+        return token
+
+    # Number literal (integer or float)
+    @_(r'\d+\.\d+')
+    def NUMBER(self, token):
+        token.value = float(token.value)
+        return token
+
+    @_(r'\d+')
+    def NUMBER(self, token):
+        token.value = int(token.value)
+        return token
+
+    # Identifiers and keywords
+    @_(r'[a-zA-Z_][a-zA-Z0-9_]*')
+    def NAME(self, token):
+        # Keywords
+        if token.value == 'if':
+            token.type = 'IF'
+        elif token.value == 'then':
+            token.type = 'THEN'
+        elif token.value == 'else':
+            token.type = 'ELSE'
+        elif token.value == 'end':
+            token.type = 'END'
+        elif token.value == 'while':
+            token.type = 'WHILE'
+        elif token.value == 'do':
+            token.type = 'DO'
+        elif token.value == 'def':
+            token.type = 'DEF'
+        elif token.value == 'print':
+            token.type = 'PRINT'
+        elif token.value == 'true':
+            token.type = 'TRUE'
+            token.value = True
+        elif token.value == 'false':
+            token.type = 'FALSE'
+            token.value = False
+        else:
+            token.type = 'NAME'
+        return token
+
+    # Single-line comments (// to end of line)
+    @_(r'//.*')
+    def COMMENT(self, t):
+        pass
+
+    # Newlines (for line counting, but otherwise ignored)
     @_(r'\n+')
     def ignore_newline(self, t):
-        # https://sly.readthedocs.io/en/latest/sly.html#line-numbers-and-position-tracking
         self.lineno += t.value.count('\n')
 
-    def error(self, t):
-        self.index += 1
-        print(f"ERROR: Illegal character '{t.value[0]}' at line {self.lineno}")
-
-if __name__ == '__main__':
-    # Write a simple test that only run when you execute this file
-    string_input:str = "x1 + 1as! * ()"
-    lex:Lexer = MyLexer()
-    # assign type to `token`
-    token: sly.lex.Token
-    for token in lex.tokenize(string_input):
-        print(token)
+    # Illegal characters
+    def error(self, token):
+        raise LexerError(f"Illegal character {token.value[0]!r} at line {self.lineno}")
