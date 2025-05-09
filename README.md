@@ -90,10 +90,7 @@ The repository includes:
 
 ## License
 
-This project is for academic purposes and coursework submission. Contact the author for reuse or collaboration.
-
-````
-You can copy this into a file called `README.md` and place it in the root of your GitHub project. Then run:
+This project is for academic purposes and coursework submission. Contact the author for reuse or collaboration. You can copy this into a file called `README.md` and place it in the root of your GitHub project. Then run:
 
 ```bash
 git add README.md
