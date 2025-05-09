@@ -9,8 +9,8 @@ def singleton(cls):
 @singleton
 class Memory:
     def __init__(self):
-        self.scopes = [{}]  # list of dicts, first is global scope
-        self.functions = {}
+        self.scopes = [{}]  # stack of variable scopes (global first)
+        self.functions = {}  # map function names to function def objects
         self.output = []
 
     def get(self, name):
@@ -20,7 +20,6 @@ class Memory:
         raise NameError(f"Variable '{name}' is not defined")
 
     def set(self, name, value):
-        # set variable in current (top) scope
         self.scopes[-1][name] = value
 
     def add_output(self, value):
@@ -38,27 +37,24 @@ class Memory:
         self.functions[name] = func_def
 
     def call_function(self, name, arguments):
-        # Built-in print as function
-        if name == 'print':
-            for arg in arguments:
-                value = arg.run()
-                self.add_output(value)
-            return None
         if name not in self.functions:
             raise NameError(f"Function '{name}' is not defined")
-        func_def = self.functions[name]
-        args_values = [arg.run() for arg in arguments]
-        if len(args_values) != len(func_def.parameters):
-            raise TypeError(f"Function '{name}' expects {len(func_def.parameters)} arguments")
-        # Push new scope for function parameters
-        local_scope = {}
-        for param_name, arg_val in zip(func_def.parameters, args_values):
-            local_scope[param_name] = arg_val
-        self.scopes.append(local_scope)
-        func_def.body.run()
-        # Pop the function scope
-        self.scopes.pop()
-        return None
 
-# Global memory instance
+        func_def = self.functions[name]
+
+        if len(arguments) != len(func_def.parameters):
+            raise TypeError(f"Function '{name}' expects {len(func_def.parameters)} arguments, got {len(arguments)}")
+
+        # Evaluate argument values in caller's scope
+        arg_values = [arg.run() for arg in arguments]
+
+        # New local scope for this call
+        local_scope = dict(zip(func_def.parameters, arg_values))
+        self.scopes.append(local_scope)
+
+        func_def.body.run()
+
+        self.scopes.pop()
+
+
 MEMORY = Memory()

@@ -18,16 +18,32 @@ class MainWindow(QMainWindow):
         parser = MyParser()
         try:
             ast = parser.parse(lexer.tokenize(code))
+
+            # First pass: define functions
             for stmt in ast:
-                stmt.run()
+                from components.ast.statement import StatementFunctionDef
+                if isinstance(stmt, StatementFunctionDef):
+                    stmt.run()
+
+            # Second pass: run everything else
+            for stmt in ast:
+                from components.ast.statement import StatementFunctionDef
+                if not isinstance(stmt, StatementFunctionDef):
+                    stmt.run()
+
         except Exception as e:
             self.outputTextEdit.setPlainText(f"Error: {e}")
             return
+
+        # Display output
         self.outputTextEdit.setPlainText(MEMORY.get_output())
+
+        # Display AST
         self.astTree.clear()
         for stmt in ast:
             top = QTreeWidgetItem([str(stmt)])
             self.astTree.addTopLevelItem(top)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

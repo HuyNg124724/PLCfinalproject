@@ -2,17 +2,16 @@ from sly import Parser
 from components.lexica import MyLexer
 from components.ast import statement as ast_module
 
-
 class MyParser(Parser):
     tokens = MyLexer.tokens
-    # Precedence from lowest to highest
+
     precedence = (
         ('left', 'EQEQ', 'NOTEQ'),
+        ('left', 'LT', 'LE', 'GT', 'GE'),
         ('left', 'PLUS', 'MINUS'),
-        ('left', 'TIMES', 'DIVIDE'),
+        ('left', 'TIMES', 'DIVIDE', 'MOD'),
     )
 
-    # The start symbol
     @_('statements')
     def program(self, p):
         return p.statements
@@ -25,7 +24,6 @@ class MyParser(Parser):
     def statements(self, p):
         return [p.stmt] + p.statements
 
-    # Statement rules
     @_('NAME EQUAL expr')
     def stmt(self, p):
         return ast_module.StatementAssign(p.NAME, p.expr)
@@ -36,14 +34,13 @@ class MyParser(Parser):
 
     @_('IF expr THEN statements ELSE statements END')
     def stmt(self, p):
-        return ast_module.StatementIf(p.expr, ast_module.StatementBlock(p.statements0),
-                                       ast_module.StatementBlock(p.statements1))
+        return ast_module.StatementIf(p.expr, ast_module.StatementBlock(p.statements0), ast_module.StatementBlock(p.statements1))
 
     @_('WHILE expr DO statements END')
     def stmt(self, p):
         return ast_module.StatementWhile(p.expr, ast_module.StatementBlock(p.statements))
 
-    @_('DEF NAME LPAREN parameters RPAREN statements END')
+    @_('DEF NAME LPAREN parameters RPAREN THEN statements END')
     def stmt(self, p):
         return ast_module.StatementFunctionDef(p.NAME, p.parameters, ast_module.StatementBlock(p.statements))
 
@@ -55,7 +52,6 @@ class MyParser(Parser):
     def stmt(self, p):
         return ast_module.StatementFunctionCall(p.NAME, p.arguments)
 
-    # Expression rules
     @_('expr EQEQ expr')
     def expr(self, p):
         return ast_module.ExpressionCompare('==', p.expr0, p.expr1)
@@ -63,6 +59,22 @@ class MyParser(Parser):
     @_('expr NOTEQ expr')
     def expr(self, p):
         return ast_module.ExpressionCompare('!=', p.expr0, p.expr1)
+
+    @_('expr LT expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.LT, p.expr0, p.expr1)
+
+    @_('expr LE expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.LE, p.expr0, p.expr1)
+
+    @_('expr GT expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.GT, p.expr0, p.expr1)
+
+    @_('expr GE expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.GE, p.expr0, p.expr1)
 
     @_('expr PLUS expr')
     def expr(self, p):
@@ -104,7 +116,6 @@ class MyParser(Parser):
     def expr(self, p):
         return ast_module.ExpressionVariable(p.NAME)
 
-    # Parameter list (for function definitions)
     @_('NAME')
     def parameters(self, p):
         return [p.NAME]
@@ -117,7 +128,6 @@ class MyParser(Parser):
     def parameters(self, p):
         return []
 
-    # Argument list (for function calls)
     @_('expr')
     def arguments(self, p):
         return [p.expr]
@@ -125,6 +135,10 @@ class MyParser(Parser):
     @_('expr COMMA arguments')
     def arguments(self, p):
         return [p.expr] + p.arguments
+    
+    @_('expr MOD expr')
+    def expr(self, p):
+        return ast_module.ExpressionBinary(ast_module.Operations.MOD, p.expr0, p.expr1)
 
     @_('')
     def arguments(self, p):

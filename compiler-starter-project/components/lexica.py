@@ -5,9 +5,14 @@ class LexerError(Exception):
 
 class MyLexer(Lexer):
     tokens = {
-        NAME, NUMBER, STRING, IF, THEN, ELSE, END, WHILE, DO, DEF, PRINT, TRUE, FALSE,
-        PLUS, MINUS, TIMES, DIVIDE, EQUAL, EQEQ, NOTEQ, LPAREN, RPAREN, COMMA
-    }
+    'NUMBER', 'STRING', 'NAME',
+    'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
+    'EQUAL', 'EQEQ', 'NOTEQ',
+    'LT', 'LE', 'GT', 'GE',
+    'LPAREN', 'RPAREN', 'COMMA',
+    'IF', 'THEN', 'ELSE', 'END', 'WHILE', 'DO',
+    'DEF', 'PRINT', 'TRUE', 'FALSE'}
+
 
     ignore = ' \t'   # ignore spaces and tabs
 
@@ -22,6 +27,12 @@ class MyLexer(Lexer):
     LPAREN  = r'\('
     RPAREN  = r'\)'
     COMMA   = r','
+    MOD = r'%'
+    LE = r'<='
+    GE = r'>='
+    LT = r'<'
+    GT = r'>'
+
 
     # String literals (double quotes)
     @_(r'\"[^\"]*\"')
@@ -35,10 +46,11 @@ class MyLexer(Lexer):
         token.value = float(token.value)
         return token
 
-    @_(r'\d+')
-    def NUMBER(self, token):
-        token.value = int(token.value)
-        return token
+    @_(r'\d+(\.\d+)?')
+    def NUMBER(self, t):
+        t.value = float(t.value) if '.' in t.value else int(t.value)
+        return t
+
 
     # Identifiers and keywords
     @_(r'[a-zA-Z_][a-zA-Z0-9_]*')
