@@ -68,9 +68,9 @@ python main.py
 
 ---
 
-## Sample Test Case
+## Test Case
 
-🔗 [PLC_Language_Test_Cases.pdf](https://github.com/user-attachments/files/20034526/PLC_Language_Test_Cases.pdf)
+🔗 [PLC_TestCases.txt](https://drive.google.com/file/d/12nlVkE89-ybLJpDnNhudh58GF2KjKQmZ/view?usp=sharing)
 
 ---
 
