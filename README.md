@@ -97,3 +97,9 @@ git add README.md
 git commit -m "Add project README"
 git push
 ````
+
+---
+
+## Report
+
+🔗 [PLC_Report.pdf](https://drive.google.com/file/d/1hz6Cc6z2DgtJafbvWGOUlF4NSKrF6x03/view?usp=sharing)
